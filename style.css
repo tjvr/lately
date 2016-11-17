@@ -1,0 +1,393 @@
+body, div, p, textarea, pre, ul, ol, li, blockquote, hr,
+table, tbody, thead, tr, td, th,
+h1, h2, h3, h4, h5, a, button, input {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  list-style: none;
+  text-decoration: none;
+}
+
+* {
+  line-height: 1.25;
+}
+
+a {
+  white-space: normal;
+  cursor: pointer;
+}
+
+body {
+  font-family: -apple-system, Helvetica Neue, Lucida Grande, sans-serif;
+  font-size: 1rem;
+  background: #fff;
+  color: #000;
+  font-size: 16px;
+}
+
+strong {
+  font-weight: 700;
+}
+
+.right {
+  float: right;
+}
+
+/*****************************************************************************/
+
+body {
+  min-width: 500px; /* MIN_WIDTH */
+   /* MIN_HEIGHT */
+  line-height: 1.5em;
+  font-size: 12px;
+  background: #ececec;
+  overflow: auto;
+  height: 100%;
+  max-height: 100%;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+}
+
+.wrap {
+  position: absolute;
+  top: 32px;
+  bottom: 8px; left: 8px; right: 8px;
+}
+.show-debug .wrap {
+  bottom: 70%;
+}
+
+/*****************************************************************************/
+/* menu */
+
+.title {
+  font-size: 20px;
+  font-weight: 300;
+  padding: 4px 8px;
+  display: inline-block;
+}
+
+.menu-button {
+  display: inline-block;
+  cursor: pointer;
+  padding: 4px 4px 2px;
+}
+.menu-button:hover {
+  text-decoration: underline;
+}
+
+/*****************************************************************************/
+/* tabs */
+
+.tabs {
+  border-bottom: 1px solid #999;
+  line-height: 24px;
+  height: 24px;
+}
+
+.tab {
+  position: relative;
+  text-transform: capitalize;
+  cursor: pointer;
+  display: inline-block;
+  border: 1px solid transparent;
+  border-bottom-color: #999;
+  background: #f7f7f7; /* cf. CodeMirror-gutters */
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+  vertical-align: top;
+  height: 24px;
+  min-width: 50px;
+  text-align: center;
+}
+.tab-active, .tab:hover {
+  border-color: #999;
+}
+.tab-active, .tab-active:hover {
+  background: #fff;
+  z-index: 1;
+
+  border-bottom-color: transparent;
+}
+
+.tab span {
+  padding: 0 8px;
+  position: relative;
+  top: -1px;
+}
+
+/*****************************************************************************/
+/* panes */
+
+.pane {
+  position: absolute;
+  top: 23px;
+  bottom: 0;
+  left: 0;
+  right: 0;
+
+  background: #fff;
+  border: 1px solid #999;
+
+  padding: 4px;
+
+  overflow-x: hidden;
+  overflow-y: scroll;
+
+  display: none;
+}
+.pane-active {
+  display: block;
+}
+
+.pane h2 {
+  position: static;
+  font-size: 1em;
+  font-weight: 700;
+  padding: 0;
+  text-align: left;
+}
+
+/*****************************************************************************/
+/* code editor */
+
+.editor {
+  position: absolute;
+  top: 0; bottom: 0; left: 0; right: 0;
+
+  color: rgba(0, 0, 0, 0.8);
+  background: #fff; /* prevents flickering */
+
+  overflow: hidden;
+}
+
+.CodeMirror-cursors {
+  visibility: hidden !important;
+}
+.CodeMirror-focused .CodeMirror-cursors {
+  visibility: visible !important;
+}
+.CodeMirror-code:focus {
+    outline: none;
+}
+
+.CodeMirror {
+  font-family: Noto Sans, sans-serif;
+  letter-spacing: +0.5px;
+  font-size: 16px;
+  line-height: 20px;
+}
+
+.CodeMirror-linenumber {
+  font-family: Source Code Pro, monospace;
+  font-size: 12px;
+  /*min-width: 18px;*/
+}
+
+.CodeMirror-gutters {
+  border-right: 1px solid #999;
+}
+
+
+.CodeMirror-hints {
+  max-height: 400px;
+}
+.CodeMirror-hints .text {
+  font-family: "Lucida Grande", Verdana, Arial, "DejaVu Sans", sans-serif;
+  font-weight: bold;
+  font-size: 14px;
+  padding: 0.125em 0.25em;
+}
+.CodeMirror-hints .empty {
+  height: 6px;
+  display: block;
+}
+
+/*****************************************************************************/
+
+.fixie-output {
+  position: fixed;
+  top: 56px;
+  right: 0;
+  width: 200px;
+  bottom: 0px;
+  z-index: 1;
+  background: #efefef;
+  height: 200px;
+  overflow: scroll;
+}
+.results {
+  font-weight: 700;
+}
+
+/*****************************************************************************/
+/* debug */
+
+.debug {
+  position: absolute;
+  left: 8px; right: 8px;
+  margin-top: 8px;
+  bottom: 8px;
+  background: #fff;
+  border: 1px solid #999;
+  display: none;
+  overflow: auto;
+  top: 30%;
+}
+.show-debug .debug {
+  display: block;
+}
+
+.measure {
+  position: absolute;
+  top: -10000px;
+  left: -10000px;
+}
+
+.error {
+  font-size: 0.85em;
+  font-family: Noto Sans, Helvetica Neue, sans-serif;
+  color: #ff1818;
+}
+
+.parse-table, .parse-table-measure {
+  font-family: Source Code Pro, Menlo, monospace;
+  font-size: 1.5rem;
+  min-height: none;
+}
+.parse-table {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  position: relative;
+  margin: 0 auto;
+  padding: 0 1em;
+  box-sizing: border-box;
+  cursor: default;
+  min-height: 100%;
+}
+
+.parse-table-token {
+  position: absolute;
+  top: 0.5em;
+  text-align: center;
+  font-weight: bold;
+  font-size: 0.8em;
+}
+.parse-table-column {
+  position: absolute;
+  display: inline-block;
+  top: 0;
+  font-size: 0.6em;
+  margin-right: 24px;
+}
+.parse-table-column-spacer {
+  position: absolute;
+  display: inline-block;
+  width: 24px;
+  height: 1px;
+}
+
+.parse-table-state {
+  margin-left: 0;
+  white-space: pre;
+  border: 1px solid #ccc;
+  background: #f8f8f8;
+  border-radius: 0.25em;
+  margin-bottom: 2px;
+  padding: 0 0.25em;
+  list-style: none;
+  position: relative;
+  padding-right: 2em;
+}
+.parse-table-state:hover {
+  box-shadow: 0 0 8px rgba(255,255,0, 0.5), 0 0 2px rgba(255,255,0, 0.5), 0 0 100px rgba(255,255,255, 0.75) inset;
+}
+.parse-table-state-cause {
+  box-shadow: 0 0 12px rgba(0, 114, 255, 0.6), 0 0 2px rgba(0, 220, 255, 0.5), 0 0 100px rgba(255,255,255, 1) inset;
+}
+.parse-table-state-finished {
+  background: #e3f3ff;
+}
+.parse-table-state:before {
+  display: none;
+}
+.parse-table-state-focus {
+  box-shadow: 0 0 8px #ffe500;
+}
+.parse-table-state-focus:before {
+  display: block;
+  position: absolute;
+  content: "";
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #ff0;
+  opacity: 0.1;
+}
+
+.parse-table-literal {
+  color: #845B0C;
+  font-weight: bold;
+}
+.parse-table-symbol-insert {
+  color: #84CC8F;
+  font-weight: bold;
+}
+.parse-table-dot {
+  color: #0072D2; /* #4af; */
+}
+
+.parse-table-dot-remove {
+  color: #BF3E69;
+  font-weight: bold;
+  font-size: 14px;
+  line-height: 18px;
+  vertical-align: top;
+}
+
+
+.parse-table-index,
+.parse-table-origin,
+.parse-table-error {
+  color: #fa4;
+  font-size: 0.8em;
+  font-family: Noto Sans, Helvetica Neue, sans-serif;
+}
+.parse-table-index {
+  display: block;
+  height: 3em;
+  line-height: 2em;
+}
+.parse-table-origin {
+  border-right: 1px solid #ccc;
+  display: inline-block;
+  height: 1.25em;
+  vertical-align: middle;
+  padding-right: 0.25em;
+  margin-right: 0.5em;
+}
+.parse-table-error {
+  float: right;
+  margin-top: 0.25em;
+  border-left: 1px solid #ccc;
+  display: inline-block;
+  height: 1.25em;
+  vertical-align: middle;
+  padding-left: 0.25em;
+  color: #ba44ff;
+  min-width: 7px;
+  text-align: right;
+
+  position: absolute;
+  right: 0.25em;
+}
+
+/*****************************************************************************/
+

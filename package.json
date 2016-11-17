@@ -1,0 +1,15 @@
+{
+  "name": "lately",
+  "version": "0.1",
+  "description": "super-fast parser for arbitrary CFGs",
+  "main": "lately.js",
+  "repository": {
+    "url": "https://github.com/tjvr/lately",
+    "type": "git"
+  },
+  "author": "tjvr",
+  "license": "MIT",
+  "dependencies": {
+    "codemirror": "^5.20.2"
+  }
+}
