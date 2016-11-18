@@ -432,7 +432,8 @@ var BNF = (function() {
 
     var p = new Parser(g);
 
-    var item = p.parse(tokens);
+    p.feed(tokens)
+    var item = p.parse();
     if (p.error) {
       console.error(p.error);
       throw p.error;
@@ -450,7 +451,8 @@ var BNF = (function() {
 
     var grammar = new Grammar();
     rules.forEach(rule => grammar.add(rule))
-    grammar.add(Rule(Earley.Token.START, [rules[rules.length - 1].name], identity))
+    grammar.add(Rule(Earley.Token.START, [rules[0].target], identity))
+    grammar.add(Rule("NL", ['\n'], identity))
     grammar.log()
     return grammar;
   }

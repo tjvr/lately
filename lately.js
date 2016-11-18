@@ -135,6 +135,7 @@
           grammar.add(clone)
         })
       })
+      return grammar
     }
 
     log() {
@@ -333,11 +334,14 @@
   class Parser {
     constructor(grammar, options) {
       this.grammar = grammar
+      if (!(grammar instanceof Grammar)) throw 'expected Grammar'
 
       this.columns = []
       this.tokens = []
+      this.index = 0
     }
 
+    // TODO return syntax errors, don't throw them
     _error(msg, token, previous) {
       // TODO error messages
       if (msg === 'Unexpected') {
@@ -347,21 +351,83 @@
       }
     }
 
-    parse2(tokens) {
-      this.error = null
-      this.index = 0
+    rewind(index) {
+      if (index < 0 || index > this.tokens.length) throw new Error('invalid index')
+      this.index = index
+    }
 
-      var first = new Column(this.grammar, 0, this.maxCost)
-      first.predict(this.grammar.toplevel)
+    feed(newTokens) {
+      let tokens = this.tokens
+      var index
+      for (var i=0; i<newTokens.length; i++) {
+        index = this.index + i
+        // cf. Map key equality semantics (we don't bother special-casing NaN)
+        if (tokens[index] !== newTokens[i]) {
+          break
+        }
+      }
+      index = this.index + i
+      tokens.splice(index)
+      this.columns.splice(index)
+      if (this.columns.length === 0) {
+        this._start()
+      }
+      for ( ; i<newTokens.length; i++) {
+        this._step(newTokens[i])
+      }
+    }
 
-      this.table = []
-      this.table.push(first)
-      this.process(first, undefined)
-      if (this.error) return
+    // TODO gc-friendly mode; store columns only at checkpoints
 
-      this.tokens = tokens
-      this.maxCost = 0
-      return this._resume(1)
+    _start() {
+      if (this.columns.length !== 0) throw new Error('oops')
+      if (this.index !== 0) throw new Error('oops')
+
+      let column = new Column(this.grammar, 0)
+      this.columns = [column]
+      column.wants.set(Token.START, [])
+      column.predict(Token.START)
+      column.process()
+    }
+
+    _step(token) {
+      //if (this.columns.length !== this.index + 1) throw new Error('oops')
+
+      let columns = this.columns
+      let previous = columns[columns.length - 1]
+      let column = new Column(this.grammar, this.index + 1)
+
+      // DEBUG
+      //previous.log()
+
+      if (!previous.wants.size) {
+        // TODO: can this happen?
+        throw this._error('Expected EOF', token)
+      }
+
+      let canScan = column.scan(token, previous)
+      if (!canScan) {
+        throw this._error('Unexpected', token, previous)
+      }
+
+      column.process()
+
+      columns.push(column)
+      this.tokens.push(token)
+      this.index++
+    }
+
+    parse() {
+      if (arguments.length) throw 'parse() takes no arguments'
+      let column = this.columns[this.index]
+      let item = column.unique[0].get(Token.START)
+      if (!item) {
+        // TODO: can this happen?
+        throw this._error('Failed', this.tokens[this.index])
+      }
+
+      let value = item.evaluate()
+      return value
     }
 
     _resume(resume) {
@@ -398,7 +464,7 @@
       return byOrigin[0]
     }
 
-    parse(tokens) {
+    parse3(tokens) {
       // TODO resumable
       this.tokens = tokens.slice()
 
@@ -484,54 +550,33 @@
     constructor(grammar) {
       this.leftParser = new Parser(grammar)
       this.rightParser = new Parser(grammar.reverse())
-
-      this.tokens = []
     }
 
-    rewind(index) {
-      this.tokens.splice(index)
-    }
+    rewind(index) { return this.leftParser.rewind(index) }
+    feed(tokens) { return this.leftParser.feed(tokens) }
+    highlight(start, end) { return this.leftParser.highlight(start, end) }
+    parse() { return this.leftParser.parse() }
 
-    feed(newTokens) {
-      var oldIndex = this.tokens.length
-      ;[].push.apply(this.tokens, newTokens)
-      this.error = null
-      try {
-        this.leftParser.parse(this.tokens)
-      } catch (e) {
-        this.error = e
-      }
-      return this.leftParser.table.slice(oldIndex)
-    }
+    complete(cursor, end) {
+      let tokens = this.tokens
 
-    parse(tokens) {
-      return this.leftParser.parse(tokens)
-    }
-
-    complete(tokens, cursor) {
-      var left = tokens.slice(0, cursor)
-      left.push(Completer.cursorToken)
-
-      var right = tokens.slice(cursor)
+      let right = tokens.slice(cursor)
       right.reverse()
-      right.push(Completer.cursorToken)
+      this.rightParser.rewind(0)
+      this.rightParser.feed(tokens)
 
       var leftColumn
       var rightColumn
       try {
         this.leftParser.parse(left); throw false
       } catch (e) {
-        if (e.found !== Completer.cursorToken) {
-          return; // Error before we reached cursor
-        }
+        // TODO check index matches cursor
         leftColumn = e._table[e._table.length - 1]
       }
       try {
         this.rightParser.parse(right); throw false
       } catch (e) {
-        if (e.found !== Completer.cursorToken) {
-          return; // Error before we reached cursor
-        }
+        // TODO check index matches right.length
         rightColumn = e._table[e._table.length - 1]
       }
 
@@ -583,8 +628,8 @@
       // }))
 
       return completions
-
     }
+
   }
   Completer.cursorToken = {
     kind: "cursor",

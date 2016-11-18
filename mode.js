@@ -15,17 +15,26 @@ CodeMirror.defineMode("lately", function(cfg, modeCfg) {
     }
 
     highlight(line) {
-      console.log(this.index, line)
-      this.index += line.length
-      return line[0] === '\n' ? [{text: '\n'}, {text: line.slice(1), class: 'string'}] : [{text: line, class: 'string'}]
+      console.log(this.index, JSON.stringify(line), line.length)
 
       let tokens = [].slice.apply(line)
 
       let start = this.index
       let end = this.index = start + tokens.length
 
-      completer.rewind(start)
-      completer.feed(tokens)
+      try {
+        completer.rewind(start)
+      } catch (e) {
+        // previous error
+      }
+
+      try {
+        completer.feed(tokens)
+      } catch (e) {
+        console.error(e)
+      }
+
+      return line[0] === '\n' ? [{text: '\n'}, {text: line.slice(1), class: 'string'}] : [{text: line, class: 'string'}]
       return completer.highlight(start, end) // { text, class }
     }
 
