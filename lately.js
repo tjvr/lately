@@ -270,6 +270,7 @@
     }
 
     scan(token, previous) {
+      if (token === undefined) throw new Error('undefined token')
       let tags = token.scan ? token.scan() : [token]
       tags.forEach(tag => {
         if (previous.wants.has(tag)) {
@@ -339,6 +340,8 @@
       this.columns = []
       this.tokens = []
       this.index = 0
+
+      this._start()
     }
 
     // TODO return syntax errors, don't throw them
@@ -352,28 +355,47 @@
     }
 
     rewind(index) {
+      // set the current index for the next feed() or parse()
+      // we aggressively cache columns, so this doesn't throw them away yet
       if (index < 0 || index > this.tokens.length) throw new Error('invalid index')
       this.index = index
     }
 
     feed(newTokens) {
-      let tokens = this.tokens
-      var index
+      // only throw away columns if we see a new and unusual token
+      let end = this.index + newTokens.length
+      let offset = this.tokens.length
       for (var i=0; i<newTokens.length; i++) {
-        index = this.index + i
         // cf. Map key equality semantics (we don't bother special-casing NaN)
-        if (tokens[index] !== newTokens[i]) {
+        if (this.tokens[i + offset] !== newTokens[i]) {
           break
         }
+        this.index++
       }
-      index = this.index + i
-      tokens.splice(index)
-      this.columns.splice(index)
-      if (this.columns.length === 0) {
-        this._start()
-      }
+      if (i === newTokens.length) return
+
+      // add remaining tokens
+      this.tokens.splice(this.index)
+      let count = newTokens.length - i
       for ( ; i<newTokens.length; i++) {
-        this._step(newTokens[i])
+        if (newTokens[i] === undefined) throw new Error('undefined token')
+        this.tokens.push(newTokens[i])
+      }
+
+      // can't parse so give up
+      if (this.columns.length < this.index + 1) {
+        throw new Error('last feed() threw a syntax error')
+      }
+
+      // recalc columns, up to end of newTokens
+      this.columns.splice(this.index + 1)
+      if (this.columns.length === 0) throw 'impossible'
+      // nb. length of columns may be < index+1 *iff* the last feed() threw an error
+
+      while (this.index < end) {
+        if (this.tokens[this.index] === undefined) throw 'help'
+        this._step(this.tokens[this.index])
+        this.index++
       }
     }
 
@@ -391,7 +413,8 @@
     }
 
     _step(token) {
-      //if (this.columns.length !== this.index + 1) throw new Error('oops')
+      // TODO this is getting offset wrong -- something about newlines probably?
+      if (this.columns.length !== this.index + 1) throw new Error('oops') // TODO
 
       let columns = this.columns
       let previous = columns[columns.length - 1]
@@ -413,8 +436,6 @@
       column.process()
 
       columns.push(column)
-      this.tokens.push(token)
-      this.index++
     }
 
     parse() {
@@ -430,119 +451,73 @@
       return value
     }
 
-    _resume(resume) {
-      var column = this.table[resume - 1]
-      assert(column.position === resume - 1)
-      assert(resume === this.table.length)
+    highlight(start, end) {
+      let classes = []
+      for (var index=start; index<end; index++) {
+        classes.push(new Set())
+      }
 
-      var tokens = this.tokens
-      for (var index = resume; index <= tokens.length; index++) {
-        var token = tokens[index]
-        var previous = column
-        column = Column(grammar, index + 1)
-        var canScan = token instanceof Token ? column.scanToken(token, previous) : column.scan(token, previous)
-        if (!canScan) {
-          throw this._error(token, previous)
+      function getClass(tag) {
+        return tag.className ? tag.className() : (''+tag)
+      }
+      function getText(token) {
+        return typeof token === 'string' ? token : (token.text || token.value || ('' + token))
+      }
+
+      for (var index=start; index<=end; index++) {
+        var column = this.columns[index]
+        if (!column) {
+          for ( ; index<=end; index++) {
+            let set = classes[index - start - 1]
+            if (set) set.add('error')
+          }
+          break
         }
+        column.items.forEach(item => {
+          if (isLR0(item.tag)) return
 
-        this.index = index
+          // don't highlight individual characters
+          let className = getClass(item.tag)
+          if (className === '\n') return
+          if (className.length === 1) {
+            // TODO make this simpler
+            if (item.start.index === index || item.start.index === column.index - 1) {
+              return
+            }
+          }
 
-        var lastColumn = column
-        column = this.scan(column, tokens, index - 1)
-        assert(this.table.length === column.position)
-        this.table.push(column)
+          // names must match CodeMirror prefix
+          if (!/^cm-/.test(className)) return
+          className = className.slice(3)
 
-        this.process(column, lastColumn)
-        if (this.error) return
+          for (var j=item.start.index; j<index; j++) {
+            let set = classes[j - start]
+            if (set) set.add(className)
+          }
+        })
       }
 
-      var byOrigin = column.idx[this.grammar.toplevel]
-      if (!byOrigin || !byOrigin[0]) {
-        this.error = "no results"
-        return
-      }
-      return byOrigin[0]
-    }
+      let classNames = classes.map(set => {
+        let classList = Array.from(set)
+        classList.sort()
+        return classList.join(" ")
+      })
 
-    parse3(tokens) {
-      // TODO resumable
-      this.tokens = tokens.slice()
+      let out = []
+      for (var index=start; index<end; index++) {
+        let token = this.tokens[index]
+        let text = getText(token)
+        let className = classNames[index - start]
 
-      var column = new Column(this.grammar, 0)
-      this.columns = [column]
-      column.wants.set(Token.START, [])
-      column.predict(Token.START)
-
-      for (var index=0; index<tokens.length; index++) {
-        column.process()
-
-        // DEBUG
-        column.log()
-
-        var token = tokens[index]
-        var previous = column
-        column = new Column(this.grammar, index + 1)
-        this.columns.push(column)
-
-        if (!previous.wants.size) {
-          // TODO: can this happen?
-          throw this._error('Expected EOF', token)
-        }
-
-        let canScan = column.scan(token, previous)
-        if (!canScan) {
-          throw this._error('Unexpected', token, previous)
+        let last = out[out.length - 1]
+        if (index > start && last.className === className) {
+          last.text += text
+        } else {
+          out.push({ text, className })
         }
       }
-
-      column.process()
-
-      let item = column.unique[0].get(Token.START)
-      if (!item) {
-        // TODO: can this happen?
-        throw this._error('Failed', token)
-      }
-
-      let value = item.evaluate()
-      return value
-
-      /*
-      token = lexer.lex()
-      index = 0
-      while token != Token.EOF:
-        #print index, column.items
-      previous, column = column, Column(grammar, index + 1)
-      if not column.scan(token, previous):
-        msg = "Unexpected " + token.kind + " @ " + str(index)
-      if token.value:
-        msg += ": " + token.value
-      for token in previous.wants:
-        if isinstance(token, Token):
-        if token.value:
-        assert not isinstance(token.value, Leaf) # TODO remove
-      msg += "\nExpected: " + token.value
-      else:
-        msg += "\nExpected: " + token.kind
-      return msg
-      column.process()
-
-      if token == Token.word('{'):
-        column.evaluate()
-      elif token == Token.word('}'):
-        column.evaluate()
-
-      token = lexer.lex()
-      index += 1
-
-      #print index, column.items
-      key = 0, Symbol.START
-      if key not in column.unique:
-        return "Unexpected EOF"
-      start = column.unique[key]
-      value = start.evaluate()
-
-      return value.sexpr() #"yay"
-      */
+      //console.log(JSON.stringify(out))
+      return out
     }
   }
 

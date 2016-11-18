@@ -1,21 +1,26 @@
 
 var myDslGrammar = BNF.parseBnf(`
 
-File ::_
-  NL File
-  File NL
-  File BlankLines Script
-  Script
+file ::_
+  nL file
+  file nL
+  file blankLines script
+  script
 
-BlankLines ::_
-  NL NL
-  BlankLines NL
+blankLines ::_
+  nL nL
+  blankLines nL
 
-Script ::_
-  Hello
+script ::
+  cm-string cm-keyword
 
-Hello ::_
+cm-string ::_
   h e l l o
+
+cm-keyword ::_
+  w o r l d
+
+sEP ::_ nL
 
 `)
 

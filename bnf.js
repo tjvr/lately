@@ -62,7 +62,7 @@ var BNF = (function() {
     ['colons',   /:::?/],
     ['code', /\{\{ ([^}]*) \}\}/],
 
-    ['identifier', /[A-Z][A-Za-z]*/],
+    ['identifier', /[a-z][A-Za-z-]*/],
 
     // ['literal', /[a-z][A-Za-z]*/],
     // ['literal', /[^?'"]/],
@@ -131,19 +131,6 @@ var BNF = (function() {
 
 
   /* grammar */
-
-  /*
-  function MatchChar(value) {
-    this.value = value;
-  }
-  MatchChar.prototype.match = function(other) {
-    return this.value.test ? this.value.test(other) : this.value === other;
-  };
-  MatchChar.prototype.toString = function(other) {
-    if (this.value.test) return this.value.source;
-    return /[A-Z,\?]/.test(this.value) ? JSON.stringify(this.value) : this.value;
-  };
-  */
 
   function identity(x) {
     assert(arguments.length === 1);
@@ -315,8 +302,7 @@ var BNF = (function() {
   function ruleSep(name, _, o) {
     var sepSymbols = [];
     o.symbols.forEach(function(sym, index) {
-      if (index > 0) sepSymbols.push("SEP");
-      sepSymbols.push(sym);
+      if (index > 0) sepSymbols.push("sEP"); sepSymbols.push(sym);
     });
     var o = {
       symbols: sepSymbols,
@@ -452,7 +438,8 @@ var BNF = (function() {
     var grammar = new Grammar();
     rules.forEach(rule => grammar.add(rule))
     grammar.add(Rule(Earley.Token.START, [rules[0].target], identity))
-    grammar.add(Rule("NL", ['\n'], identity))
+    grammar.add(Rule("nL", ['\n'], identity))
+    grammar.add(Rule("sEP", [' '], identity))
     grammar.log()
     return grammar;
   }

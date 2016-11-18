@@ -4,18 +4,19 @@ CodeMirror.defineMode("lately", function(cfg, modeCfg) {
   var completer = new Lately.Completer(modeCfg.grammar)
 
   class State {
-    constructor(index = 0, line = null) {
+    constructor(index = 0, line=null, hasError=false) {
       this.index = index
       this.line = line || []
+      this.hasError = hasError
       // this.indent = 0 // TODO auto-indent
     }
 
     copy() {
-      return new State(this.index, this.line)
+      return new State(this.index, this.line, this.hasError)
     }
 
     highlight(line) {
-      console.log(this.index, JSON.stringify(line), line.length)
+      //console.log(this.index, JSON.stringify(line), line.length)
 
       let tokens = [].slice.apply(line)
 
@@ -31,31 +32,32 @@ CodeMirror.defineMode("lately", function(cfg, modeCfg) {
       try {
         completer.feed(tokens)
       } catch (e) {
+        if (!this.hasError) {
         console.error(e)
+        }
+        this.hasError = true
       }
 
-      return line[0] === '\n' ? [{text: '\n'}, {text: line.slice(1), class: 'string'}] : [{text: line, class: 'string'}]
-      return completer.highlight(start, end) // { text, class }
+      // TODO only bother highlighting certain classes
+      return completer.highlight(start, end) // { text, className }
     }
 
     next(stream) {
       // this.indent = stream.indentation()
 
       if (!this.line.length) {
+        if (this.index > 0) {
+          this.highlight('\n')
+        }
         let m = stream.match(/.*/, false) // don't consume
-        let line = this.index === 0 ? m[0] : '\n' + m[0]
-        this.line = this.highlight(line)
+        this.line = this.highlight(m[0])
       }
 
       let token = this.line.shift()
-      if (token.text === '\n') {
-        token = this.line.shift()
-      }
       if (!stream.match(token.text)) { // consume
         throw "Does not match stream: " + token
       }
-      var className = "s-" + token.class // TODO different classname?
-      return className
+      return token.className
     }
   }
 
