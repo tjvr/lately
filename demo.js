@@ -1,42 +1,37 @@
 
-var myDslGrammar = BNF.parseBnf(`
+let bnf = BNF.template
 
-file ::_
-  nL file
-  file nL
-  file blankLines script
-  script
+let myDslGrammar = bnf`
 
-blankLines ::_
-  nL nL
-  blankLines nL
+file --> NL file
+      | file NL
+      | file blankLines script
+      | script
 
-script ::
-  cm-string
+blankLines --> NL NL
+            | blankLines NL
 
-cm-string ::
-  hELLO cm-keyword wORLD
+script => cm_string
 
-hELLO ::_
-  h e l l o
+cm_string => 'hello' cm_keyword 'world'
+           | '1'
 
-wORLD ::_
-  w o r l d
+cm_keyword => 'sweet'
+            | 'happy'
 
-cm-keyword ::_
-  s w e e t
-  h a p p y
+int --> /[0-9]+/        ${parseInt}
 
-sEP ::_ nL
-
-`)
+NL --> '\n'
+SEP --> ' '
+      | NL
+`
 
 var cmOptions = {
   value: "",
   mode: {
     name: 'lately',
     grammar: myDslGrammar,
-    highlight: tag => /^cm-/.test(tag) ? tag.slice(3) : '',
+    highlight: tag => /^cm_/.test(tag) ? tag.slice(3) : '',
   },
   extraKeys: {'Ctrl-Space': 'autocomplete'},
 

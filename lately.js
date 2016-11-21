@@ -1,10 +1,11 @@
 (function (mod) {
+  let name = 'Lately'
   if (typeof define === 'function' && define.amd) {
-    define(mod); // amd
+    define(mod()) // amd
   } else if (typeof module !== 'undefined' && module.exports) {
-    module.exports = mod; // node
+    module.exports = mod() // node
   } else {
-    window.Lately = mod;
+    window[name] = mod()
   }
 })(function() {
 
@@ -39,8 +40,9 @@
     return token
   }
   Token.START = Token.get('START')
+  Token.SEP = Token.get('SEP')
   Token.EOF = Token.get('EOF')
-  Token.NL = Token.get('NL', '\n')
+  // Token.NL = Token.get('NL', '\n')
 
   // is-a Tag
   class LR0 {
@@ -335,7 +337,7 @@
       var options = options || {}
 
       this.grammar = grammar
-      if (!(grammar instanceof Grammar)) throw 'expected Grammar'
+      if (!(grammar instanceof Grammar)) throw new Error('need a Grammar')
 
       this.columns = []
       this.tokens = []
@@ -655,7 +657,6 @@
   }
 
 
-
   return {
     Token,
     Rule,
@@ -663,5 +664,4 @@
     Parser,
     Completer,
   }
-
-}())
+})
