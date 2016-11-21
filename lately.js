@@ -348,16 +348,6 @@
       this._start()
     }
 
-    // TODO return syntax errors, don't throw them
-    _error(msg, token, previous) {
-      // TODO error messages
-      if (msg === 'Unexpected') {
-        return msg + token
-      } else {
-        return msg
-      }
-    }
-
     rewind(index) {
       // set the current index for the next feed() or parse()
       // we aggressively cache columns, so this doesn't throw them away yet
@@ -393,7 +383,7 @@
 
       // can't parse so give up
       if (this.columns.length < this.index + 1) {
-        throw new Error('last feed() threw a syntax error')
+        return { index: this.columns.length }
       }
 
       // recalc columns, up to end of newTokens
@@ -403,8 +393,9 @@
 
       while (this.index < end) {
         if (this.tokens[this.index] === undefined) throw 'help'
-        this._step(this.tokens[this.index])
+        let error = this._step(this.tokens[this.index])
         this.index++
+        if (error) return error
       }
     }
 
@@ -434,12 +425,12 @@
 
       if (!previous.wants.size) {
         // TODO: can this happen?
-        throw this._error('Expected EOF', token)
+        return { error: 'Expected EOF', index: this.index, type: 'empty-wants', column: column }
       }
 
       let canScan = column.scan(token, previous)
       if (!canScan) {
-        throw this._error('Unexpected', token, previous)
+        return { error: 'Unexpected ' + token, index: this.index + 1, type: 'cant-scan', column: column }
       }
 
       column.process()
@@ -464,8 +455,6 @@
       let highlighter = this.highlighter
       let index = highlighter.ranges.length
       highlighter.feed(this.columns.slice(index, end + 1)) // nb. it's possible index > end
-      if (highlighter.ranges.length !== this.columns.length) throw 'problem' // problem
-
       return highlighter.highlight(start, end)
     }
   }
@@ -491,7 +480,7 @@
     }
 
     discard(index) {
-      if (index < 0 || index > this.ranges.length) throw new Error('invalid index')
+      // nb. sometimes index > this.ranges.length; this happens when there was an error
       this.ranges.splice(index)
     }
 
@@ -517,13 +506,19 @@
     }
 
     highlight(start, end) {
-      if (end > this.ranges.length) throw new Error("must feed() before highlight()")
+      //if (end >= this.ranges.length) throw new Error("must feed() before highlight()")
 
       // get ranges and split points
       let ranges = []
       let pointsSet = new Set()
       for (var index = start; index <= end; index++) {
-        this.ranges[index].forEach(range => {
+        let colRanges = this.ranges[index]
+        if (!colRanges) {
+          pointsSet.add(index - 1)
+          ranges.push(new Range(index - 1, end, 'error'))
+          break
+        }
+        colRanges.forEach(range => {
           pointsSet.add(range.start)
           pointsSet.add(range.end)
           ranges.push(range)

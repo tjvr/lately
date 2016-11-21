@@ -6,15 +6,14 @@ CodeMirror.defineMode("lately", function(cfg, modeCfg) {
   })
 
   class State {
-    constructor(index = 0, line=null, hasError=false) {
+    constructor(index = 0, line=null) {
       this.index = index
       this.line = line || []
-      this.hasError = hasError
       // this.indent = 0 // TODO auto-indent
     }
 
     copy() {
-      return new State(this.index, this.line, this.hasError)
+      return new State(this.index, this.line)
     }
 
     highlight(line) {
@@ -29,21 +28,13 @@ CodeMirror.defineMode("lately", function(cfg, modeCfg) {
         // previous error
       }
 
-      try {
-        completer.feed(tokens)
-      } catch (e) {
-        if (!this.hasError) {
-        console.error(e)
-        }
-        this.hasError = true
+      let error = completer.feed(tokens)
+      if (error) {
+        console.error(error)
       }
 
-      try {
-        var ranges = completer.highlight(start, end)
-      } catch(e) {
-        // TODO highlight up to error point
-        return [{ className: 'error', text: line }]
-      }
+      let ranges = completer.highlight(start, end)
+
       return ranges.map(range => {
         let className = range.className
         let rangeStart = range.start - start
