@@ -1,7 +1,7 @@
 var BNF = (function() {
   'use strict';
 
-    
+
   function assert(x, message) {
     if (!x) {
       var err = new Error("Assertion failed: " + (message || ''));
@@ -18,7 +18,7 @@ var BNF = (function() {
   } else {
     Earley = window.Lately
   }
-    
+
   var Grammar = Earley.Grammar;
   var Parser = Earley.Parser;
 
@@ -70,7 +70,7 @@ var BNF = (function() {
 
     ['null', /ε/],
     //['optional', /\?/],
-    
+
     ['string',  /"((\\["\\]|[^"\\])*)"/],
     // ['range',   /\[[^\]]+\]/],
 
@@ -187,7 +187,7 @@ var BNF = (function() {
     }
     code = "(function (" + args + ") { " + body + "; })"
     console.log(code);
-    var func = eval(code); // TODO scoped eval 
+    var func = eval(code); // TODO scoped eval
     return func;
   }
 

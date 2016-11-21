@@ -167,8 +167,6 @@
       this.rule = null
       this.derivations = []
 
-      this.cameFrom = new Error().stack
-
       // this.value = undefined
       // this.children = undefined
     }
@@ -451,15 +449,12 @@
       return value
     }
 
-    highlight(start, end) {
+    highlight(start, end, getClass) {
       let classes = []
       for (var index=start; index<end; index++) {
         classes.push(new Set())
       }
 
-      function getClass(tag) {
-        return tag.className ? tag.className() : (''+tag)
-      }
       function getText(token) {
         return typeof token === 'string' ? token : (token.text || token.value || ('' + token))
       }
@@ -476,19 +471,9 @@
         column.items.forEach(item => {
           if (isLR0(item.tag)) return
 
-          // don't highlight individual characters
           let className = getClass(item.tag)
-          if (className === '\n') return
-          if (className.length === 1) {
-            // TODO make this simpler
-            if (item.start.index === index || item.start.index === column.index - 1) {
-              return
-            }
-          }
-
-          // names must match CodeMirror prefix
-          if (!/^cm-/.test(className)) return
-          className = className.slice(3)
+          if (className === undefined) throw 'class cannot be undefined'
+          if (!className) return
 
           for (var j=item.start.index; j<index; j++) {
             let set = classes[j - start]
@@ -529,7 +514,7 @@
 
     rewind(index) { return this.leftParser.rewind(index) }
     feed(tokens) { return this.leftParser.feed(tokens) }
-    highlight(start, end) { return this.leftParser.highlight(start, end) }
+    highlight(start, end, getClass) { return this.leftParser.highlight(start, end, getClass) }
     parse() { return this.leftParser.parse() }
 
     complete(cursor, end) {

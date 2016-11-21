@@ -38,8 +38,8 @@ CodeMirror.defineMode("lately", function(cfg, modeCfg) {
         this.hasError = true
       }
 
-      // TODO only bother highlighting certain classes
-      return completer.highlight(start, end) // { text, className }
+      let getClass = modeCfg.highlight
+      return completer.highlight(start, end, getClass) // => Array { text, className }
     }
 
     next(stream) {
