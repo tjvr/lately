@@ -270,7 +270,7 @@
     }
 
     scan(token, previous) {
-      if (token === undefined) throw new Error('undefined token')
+      if (token === undefined) throw 'undefined token'
       let tags = token.scan ? token.scan() : [token]
       tags.forEach(tag => {
         if (previous.wants.has(tag)) {
@@ -402,8 +402,8 @@
     // TODO gc-friendly mode; store columns only at checkpoints
 
     _start() {
-      if (this.columns.length !== 0) throw new Error('oops')
-      if (this.index !== 0) throw new Error('oops')
+      if (this.columns.length !== 0) 'oops'
+      if (this.index !== 0) throw 'oops'
 
       let column = new Column(this.grammar, 0)
       this.columns = [column]
@@ -414,7 +414,7 @@
 
     _step(token) {
       // TODO this is getting offset wrong -- something about newlines probably?
-      if (this.columns.length !== this.index + 1) throw new Error('oops') // TODO
+      if (this.columns.length !== this.index + 1) 'oops' // TODO
 
       let columns = this.columns
       let previous = columns[columns.length - 1]
@@ -439,7 +439,7 @@
     }
 
     parse() {
-      if (arguments.length) throw 'parse() takes no arguments'
+      if (arguments.length) throw new Error('parse() takes no arguments')
       let column = this.columns[this.index]
       let item = column.unique[0].get(Token.START)
       if (!item) {
@@ -455,7 +455,7 @@
       let highlighter = this.highlighter
       let index = highlighter.ranges.length
       highlighter.feed(this.columns.slice(index, end + 1)) // nb. it's possible index > end
-      return highlighter.highlight(start, end)
+      return highlighter.highlight(start, end, this.columns)
     }
   }
 
@@ -495,7 +495,7 @@
         column.items.forEach(item => {
           var tag = item.tag
           if (isLR0(tag)) {
-            return
+            tag = tag.rule.target
           }
 
           // TODO make sure items are somehow used in a candidate partial parse
@@ -511,25 +511,61 @@
       })
     }
 
-    highlight(start, end) {
-      //if (end >= this.ranges.length) throw new Error("must feed() before highlight()")
+    _getRange(item, end) {
+      var tag = item.tag
+      if (isLR0(tag)) return
 
-      // get ranges and split points
-      let ranges = []
-      let pointsSet = new Set()
-      for (var index = start; index <= end; index++) {
-        let colRanges = this.ranges[index]
-        if (!colRanges) {
-          pointsSet.add(index - 1)
-          ranges.push(new Range(index - 1, end, 'error'))
-          break
-        }
-        colRanges.forEach(range => {
-          pointsSet.add(range.start)
-          pointsSet.add(range.end)
-          ranges.push(range)
-        })
+      // TODO make sure items are somehow used in a candidate partial parse
+
+      let className = this.getClass(tag)
+      if (className === undefined) throw 'class cannot be undefined'
+      if (!className) return
+
+      let start = item.start.index
+      if (start === end) return
+      return new Range(start, end, className)
+    }
+
+    _collect(item, end, seen, out) {
+      if (!item) return
+      if (seen.has(item)) return
+      seen.add(item)
+
+      let range = this._getRange(item, end)
+      if (range) out.push(range)
+
+      if (!item.right) return
+      let split = item.right.start.index
+      this._collect(item.left, split, seen, out)
+      this._collect(item.right, end, seen, out)
+    }
+
+    highlight(start, end, columns) {
+      let getClass = this.getClass
+
+      let column = columns[end]
+      if (!column) {
+        // TODO error ?
+        return [new Range(start, end, 'error')]
       }
+      let span = column.unique[start]
+      if (!span) {
+        // TODO partials.
+        return [new Range(start, end, 'error')]
+      }
+      let seen = new Set()
+      let ranges = []
+      for (let item of span.values()) {
+        if (!item.rule) continue
+        this._collect(item, end, seen, ranges)
+      }
+
+      let pointsSet = new Set()
+      ranges.forEach(range => {
+        pointsSet.add(range.start)
+        pointsSet.add(range.end)
+        ranges.push(range)
+      })
 
       // longest ranges first
       ranges.sort((a, b) => {
