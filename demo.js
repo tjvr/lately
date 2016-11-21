@@ -66,8 +66,7 @@ CodeMirror.commands.autocomplete = function(cm) {
 var editor = CodeMirror(document.querySelector('.editor'), cmOptions)
 
 this.editor.setValue(
-`
-hello sweet world
+`hello sweet world
 
 hello happy world
 `

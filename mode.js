@@ -1,7 +1,9 @@
 CodeMirror.defineMode("lately", function(cfg, modeCfg) {
 
   // Use setOption('mode', ...) to change the grammar.
-  var completer = new Lately.Completer(modeCfg.grammar)
+  var completer = new Lately.Completer(modeCfg.grammar, {
+    highlight: modeCfg.highlight, // getClass
+  })
 
   class State {
     constructor(index = 0, line=null, hasError=false) {
@@ -16,8 +18,6 @@ CodeMirror.defineMode("lately", function(cfg, modeCfg) {
     }
 
     highlight(line) {
-      //console.log(this.index, JSON.stringify(line), line.length)
-
       let tokens = [].slice.apply(line)
 
       let start = this.index
@@ -38,8 +38,18 @@ CodeMirror.defineMode("lately", function(cfg, modeCfg) {
         this.hasError = true
       }
 
-      let getClass = modeCfg.highlight
-      return completer.highlight(start, end, getClass) // => Array { text, className }
+      try {
+        var ranges = completer.highlight(start, end)
+      } catch(e) {
+        return [{ className: 'error', text: line }]
+      }
+      return ranges.map(range => {
+        let className = range.className
+        let rangeStart = range.start - start
+        let rangeEnd = range.end - start
+        let text = line.slice(rangeStart, rangeEnd)
+        return { className, text }
+      })
     }
 
     next(stream) {

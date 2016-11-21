@@ -332,12 +332,16 @@
 
   class Parser {
     constructor(grammar, options) {
+      var options = options || {}
+
       this.grammar = grammar
       if (!(grammar instanceof Grammar)) throw 'expected Grammar'
 
       this.columns = []
       this.tokens = []
       this.index = 0
+
+      this.highlighter = new Highlighter(options.highlight)
 
       this._start()
     }
@@ -359,6 +363,11 @@
       this.index = index
     }
 
+    _discard(index) {
+      this.tokens.splice(index)
+      this.highlighter.discard(index)
+    }
+
     feed(newTokens) {
       // only throw away columns if we see a new and unusual token
       let end = this.index + newTokens.length
@@ -373,7 +382,7 @@
       if (i === newTokens.length) return
 
       // add remaining tokens
-      this.tokens.splice(this.index)
+      this._discard(this.index)
       let count = newTokens.length - i
       for ( ; i<newTokens.length; i++) {
         if (newTokens[i] === undefined) throw new Error('undefined token')
@@ -449,25 +458,49 @@
       return value
     }
 
-    highlight(start, end, getClass) {
-      let classes = []
-      for (var index=start; index<end; index++) {
-        classes.push(new Set())
-      }
+    highlight(start, end) {
+      let highlighter = this.highlighter
+      let index = highlighter.ranges.length
+      highlighter.feed(this.columns.slice(index, end + 1)) // nb. it's possible index > end
+      if (highlighter.ranges.length !== this.columns.length) throw 'problem' // problem
 
-      function getText(token) {
-        return typeof token === 'string' ? token : (token.text || token.value || ('' + token))
-      }
+      return highlighter.highlight(start, end)
+    }
+  }
 
-      for (var index=start; index<=end; index++) {
-        var column = this.columns[index]
-        if (!column) {
-          for ( ; index<=end; index++) {
-            let set = classes[index - start - 1]
-            if (set) set.add('error')
-          }
-          break
-        }
+  class Range {
+    constructor(start, end, className) {
+      if (end <= start) throw new Error('invalid range')
+      this.start = start
+      this.end = end
+      this.className = className
+    }
+
+    size() {
+      return this.end - this.start
+    }
+  }
+
+  class Highlighter {
+    constructor(getClass) {
+      this.getClass = getClass
+
+      this.ranges = []
+    }
+
+    discard(index) {
+      if (index < 0 || index > this.ranges.length) throw new Error('invalid index')
+      this.ranges.splice(index)
+    }
+
+    feed(columns) {
+      let getClass = this.getClass
+      columns.forEach(column => {
+        let end = column.index
+
+        var colRanges
+        this.ranges.push(colRanges = [])
+
         column.items.forEach(item => {
           if (isLR0(item.tag)) return
 
@@ -475,41 +508,63 @@
           if (className === undefined) throw 'class cannot be undefined'
           if (!className) return
 
-          for (var j=item.start.index; j<index; j++) {
-            let set = classes[j - start]
-            if (set) set.add(className)
-          }
+          let start = item.start.index
+          colRanges.push(new Range(start, end, className))
+        })
+      })
+    }
+
+    highlight(start, end) {
+      if (end > this.ranges.length) throw new Error("must feed() before highlight()")
+
+      // get ranges and split points
+      let ranges = []
+      let pointsSet = new Set()
+      for (var index = start; index <= end; index++) {
+        this.ranges[index].forEach(range => {
+          pointsSet.add(range.start)
+          pointsSet.add(range.end)
+          ranges.push(range)
         })
       }
 
-      let classNames = classes.map(set => {
-        let classList = Array.from(set)
-        classList.sort()
-        return classList.join(" ")
+      // longest ranges first
+      ranges.sort((a, b) => {
+        return b.size() - a.size()
       })
 
-      let out = []
-      for (var index=start; index<end; index++) {
-        let token = this.tokens[index]
-        let text = getText(token)
-        let className = classNames[index - start]
+      // split on each range boundary
+      pointsSet.add(start)
+      if (pointsSet.has(end)) pointsSet.delete(end)
+      let points = Array.from(pointsSet).sort((a, b) => a - b)
+      let classes = {}
+      points.forEach(index => {
+        classes[index] = ""
+      })
 
-        let last = out[out.length - 1]
-        if (index > start && last.className === className) {
-          last.text += text
-        } else {
-          out.push({ text, className })
+      // color between points using ranges. shortest range wins
+      ranges.forEach(range => {
+        let rangeStart = Math.max(start, range.start)
+        let rangeEnd = Math.min(end, range.end)
+        for (var index = rangeStart; index < rangeEnd; index++) {
+          if (index in classes) {
+            classes[index] = range.className
+          }
         }
-      }
-      //console.log(JSON.stringify(out))
-      return out
+      })
+
+      // put the ranges together
+      return points.map((regionStart, index) => {
+        let regionEnd = points[index + 1] || end
+        return new Range(regionStart, regionEnd, classes[regionStart])
+      })
     }
   }
 
   class Completer {
-    constructor(grammar) {
-      this.leftParser = new Parser(grammar)
-      this.rightParser = new Parser(grammar.reverse())
+    constructor(grammar, options) {
+      this.leftParser = new Parser(grammar, options)
+      this.rightParser = new Parser(grammar.reverse(), options)
     }
 
     rewind(index) { return this.leftParser.rewind(index) }
