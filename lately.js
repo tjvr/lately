@@ -493,13 +493,17 @@
         this.ranges.push(colRanges = [])
 
         column.items.forEach(item => {
-          if (isLR0(item.tag)) return
+          var tag = item.tag
+          if (isLR0(tag)) {
+            tag = tag.rule.target
+          }
 
-          let className = getClass(item.tag)
+          let className = getClass(tag)
           if (className === undefined) throw 'class cannot be undefined'
           if (!className) return
 
           let start = item.start.index
+          if (start === end) return
           colRanges.push(new Range(start, end, className))
         })
       })
