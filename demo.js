@@ -13,11 +13,16 @@ blankLines --> NL NL
 
 script => cm_string               ${a => a}
 
-cm_string => 'hello' cm_keyword 'world'   ${function() { return ['hello:world', arguments[3]] }}
+cm_string => 'hello' foo 'world'  ${function() { return ['hello:world', arguments[3]] }}
            | '1'
 
-cm_keyword => 'sweet'       ${() => ['sweetConstant']}
-            | 'happy'       ${() => ['happyConstant']}
+foo --> cm_keyword                ${a => a}
+      | cm_atom                   ${a => a}
+
+cm_keyword => 'sweet'             ${() => ['sweetConstant']}
+            | 'happy'             ${() => ['happyConstant']}
+
+cm_atom => 'swe'              ${() => ['shortConst']}
 
 int --> /[0-9]+/        ${parseInt}
 
@@ -31,7 +36,7 @@ var cmOptions = {
   mode: {
     name: 'lately',
     grammar: myDslGrammar,
-    highlight: tag => /^cm_/.test(tag) ? tag.slice(3) : '',
+    highlight: tag => /^cm_/.test(tag) ? tag.slice(3).replace(/_/g, '-') : '',
   },
   extraKeys: {'Ctrl-Space': 'autocomplete'},
 
