@@ -343,7 +343,7 @@
       this.tokens = []
       this.index = 0
 
-      this.highlighter = new Highlighter(options.highlight)
+      this.highlighter = new Highlighter(this, options.highlight)
 
       this._start()
     }
@@ -406,7 +406,8 @@
       if (this.index !== 0) throw 'oops'
 
       let column = new Column(this.grammar, 0)
-      this.columns = [column]
+      this.columns.splice(0)
+      this.columns.push(column)
       column.wants.set(Token.START, [])
       column.predict(Token.START)
       column.process()
@@ -452,10 +453,9 @@
     }
 
     highlight(start, end) {
-      let highlighter = this.highlighter
-      let index = highlighter.ranges.length
-      highlighter.feed(this.columns.slice(index, end + 1)) // nb. it's possible index > end
-      return highlighter.highlight(start, end, this.columns)
+      //let index = highlighter.ranges.length
+      //highlighter.feed(this.columns.slice(index, end + 1)) // nb. it's possible index > end
+      return this.highlighter.highlight(start, end)
     }
   }
 
@@ -473,42 +473,19 @@
   }
 
   class Highlighter {
-    constructor(getClass) {
+    constructor(parser, getClass) {
       this.getClass = getClass
-
-      this.ranges = []
+      this.columns = parser.columns
     }
 
     discard(index) {
       // nb. sometimes index > this.ranges.length; this happens when there was an error
-      this.ranges.splice(index)
+      //this.ranges.splice(index)
+      // TODO remove
     }
 
     feed(columns) {
-      let getClass = this.getClass
-      columns.forEach(column => {
-        let end = column.index
-
-        var colRanges
-        this.ranges.push(colRanges = [])
-
-        column.items.forEach(item => {
-          var tag = item.tag
-          if (isLR0(tag)) {
-            tag = tag.rule.target
-          }
-
-          // TODO make sure items are somehow used in a candidate partial parse
-
-          let className = getClass(tag)
-          if (className === undefined) throw 'class cannot be undefined'
-          if (!className) return
-
-          let start = item.start.index
-          if (start === end) return
-          colRanges.push(new Range(start, end, className))
-        })
-      })
+      // TODO remove
     }
 
     _getRange(item, end) {
@@ -540,25 +517,29 @@
       this._collect(item.right, end, seen, out)
     }
 
-    highlight(start, end, columns) {
-      let getClass = this.getClass
-
-      let column = columns[end]
-      if (!column) {
-        // TODO error ?
-        return [new Range(start, end, 'error')]
-      }
+    _ranges(start, end) {
+      let columns = this.columns
+      let index = Math.min(end, columns.length - 1)
+      let column = columns[index]
       let span = column.unique[start]
-      if (!span) {
+      if (span) {
+        let seen = new Set()
+        let ranges = []
+        for (let item of span.values()) {
+          if (!item.rule) continue
+          this._collect(item, index, seen, ranges)
+        }
+        return ranges
+
+      } else {
         // TODO partials.
+        // uhh we need a way of figuring out what items to look at in this column
         return [new Range(start, end, 'error')]
       }
-      let seen = new Set()
-      let ranges = []
-      for (let item of span.values()) {
-        if (!item.rule) continue
-        this._collect(item, end, seen, ranges)
-      }
+    }
+
+    highlight(start, end) {
+      let ranges = this._ranges(start, end)
 
       let pointsSet = new Set()
       ranges.forEach(range => {
