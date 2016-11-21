@@ -20,6 +20,23 @@
   }
 
 
+  function deSep(length, func) {
+    var args = []
+    var nosep = []
+    for (var i=0; i<length; i++) {
+      let name = 't' + i
+      args.push(name)
+      if (i % 2 === 0) nosep.push(name)
+    }
+    args = args.join(', ')
+    nosep = nosep.join(', ')
+
+    if (typeof func !== 'function') throw 'not a function'
+    var build = func
+    return eval('(function(' + args + ') { return build(' + nosep + '); })')
+  }
+
+
   function parseStream(getChar) {
     var index = 0
     var tok = getChar(0)
@@ -96,6 +113,10 @@
         expect('\n')
 
         // TODO ebnf
+
+        if (useSep && build) {
+          build = deSep(symbols.length, build)
+        }
         rules.push(new Rule(target, symbols, build))
 
         pWS()

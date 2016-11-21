@@ -41,6 +41,7 @@ CodeMirror.defineMode("lately", function(cfg, modeCfg) {
       try {
         var ranges = completer.highlight(start, end)
       } catch(e) {
+        // TODO highlight up to error point
         return [{ className: 'error', text: line }]
       }
       return ranges.map(range => {

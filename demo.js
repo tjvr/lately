@@ -3,21 +3,21 @@ let bnf = BNF.template
 
 let myDslGrammar = bnf`
 
-file --> NL file
-      | file NL
-      | file blankLines script
-      | script
+file --> NL file                  ${(a, b) => b}
+      | file NL                   ${(a, b) => a}
+      | file blankLines script    ${(a, b, c) => a.concat([c])}
+      | script                    ${a => [a]}
 
 blankLines --> NL NL
             | blankLines NL
 
-script => cm_string
+script => cm_string               ${a => a}
 
-cm_string => 'hello' cm_keyword 'world'
+cm_string => 'hello' cm_keyword 'world'   ${function() { return ['hello:world', arguments[3]] }}
            | '1'
 
-cm_keyword => 'sweet'
-            | 'happy'
+cm_keyword => 'sweet'       ${() => ['sweetConstant']}
+            | 'happy'       ${() => ['happyConstant']}
 
 int --> /[0-9]+/        ${parseInt}
 
@@ -66,6 +66,12 @@ this.editor.setValue(
 hello happy world
 `
 )
+
+function compile() {
+  let result = this.editor.getMode()._completer.parse(this.editor.getValue())
+  console.log(JSON.stringify(result))
+  return result
+}
 
 // TODO layout editor on window resize
 
