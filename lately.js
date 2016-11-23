@@ -470,6 +470,10 @@
     size() {
       return this.end - this.start
     }
+
+    toString() {
+      return `Range(${this.start}, ${this.end}, '${this.className}')`
+    }
   }
 
   class Highlighter {
@@ -488,9 +492,12 @@
       // TODO remove
     }
 
-    _getRange(item, end) {
+    _getRange(item, end, allowPartial) {
       var tag = item.tag
-      if (isLR0(tag)) tag = tag.rule.target
+      if (isLR0(tag)) {
+        if (!allowPartial) return
+        tag = tag.rule.target
+      }
 
       let className = this.getClass(tag)
       if (className === undefined) throw 'class cannot be undefined'
@@ -501,24 +508,25 @@
       return new Range(start, end, className)
     }
 
-    _collect(item, end, seen, out) {
+    _collect(item, end, seen, out, allowPartial) {
       if (!item) return
       if (seen.has(item)) return
       seen.add(item)
 
-      let range = this._getRange(item, end)
+      let range = this._getRange(item, end, allowPartial)
       if (range) out.push(range)
 
       if (!item.right) return
       let split = item.right.start.index
       this._collect(item.left, split, seen, out)
-      this._collect(item.right, end, seen, out)
+      this._collect(item.right, end, seen, out, allowPartial)
     }
 
     _ranges(start, end) {
       let columns = this.columns
       var index = Math.min(end, columns.length - 1)
       var column = columns[index]
+      if (!column) return
       var span = column.unique[start]
       if (!span) return
 
@@ -526,17 +534,21 @@
       let ranges = []
       for (let item of span.values()) {
         if (!item.rule) continue
-        this._collect(item, index, seen, ranges)
+        this._collect(item, index, seen, ranges, true)
       }
       return ranges
     }
 
     highlight(start, end) {
+      if (!this.columns[start]) {
+        return [new Range(start, end, 'error')]
+      }
+
+      var ranges = this._ranges(start, end)
       let index = end
-      do {
-        var ranges = this._ranges(start, index)
-        index--
-      } while (!ranges)
+      while (!ranges && index > 0) {
+        ranges = this._ranges(start, --index)
+      }
 
       let pointsSet = new Set()
       ranges.forEach(range => {
@@ -550,9 +562,20 @@
         return b.size() - a.size()
       })
 
-      // split on each range boundary
+      // partial parses should not be tagged
+      if (index < end) {
+        pointsSet.add(index)
+        ranges.push(new Range(index, end, ''))
+      }
+
+      // otherwise, default to 'error'
+      ranges.unshift(new Range(start, end, 'error'))
+
+      // clean up boundaries
       pointsSet.add(start)
       if (pointsSet.has(end)) pointsSet.delete(end)
+
+      // split on each range boundary
       let points = Array.from(pointsSet).sort((a, b) => a - b)
       let classes = {}
       points.forEach(index => {
