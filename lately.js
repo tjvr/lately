@@ -519,27 +519,26 @@
 
     _ranges(start, end) {
       let columns = this.columns
-      let index = Math.min(end, columns.length - 1)
-      let column = columns[index]
-      let span = column.unique[start]
-      if (span) {
-        let seen = new Set()
-        let ranges = []
-        for (let item of span.values()) {
-          if (!item.rule) continue
-          this._collect(item, index, seen, ranges)
-        }
-        return ranges
+      var index = Math.min(end, columns.length - 1)
+      var column = columns[index]
+      var span = column.unique[start]
+      if (!span) return
 
-      } else {
-        // TODO partials.
-        // uhh we need a way of figuring out what items to look at in this column
-        return [new Range(start, end, 'error')]
+      let seen = new Set()
+      let ranges = []
+      for (let item of span.values()) {
+        if (!item.rule) continue
+        this._collect(item, index, seen, ranges)
       }
+      return ranges
     }
 
     highlight(start, end) {
-      let ranges = this._ranges(start, end)
+      let index = end
+      do {
+        var ranges = this._ranges(start, index)
+        index--
+      } while (!ranges)
 
       let pointsSet = new Set()
       ranges.forEach(range => {
