@@ -490,9 +490,7 @@
 
     _getRange(item, end) {
       var tag = item.tag
-      if (isLR0(tag)) return
-
-      // TODO make sure items are somehow used in a candidate partial parse
+      if (isLR0(tag)) tag = tag.rule.target
 
       let className = this.getClass(tag)
       if (className === undefined) throw 'class cannot be undefined'
