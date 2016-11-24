@@ -18,11 +18,16 @@ cm_string => 'hello' foo 'world'  ${function() { return ['hello:world', argument
 
 foo --> cm_keyword                ${a => a}
       | cm_atom                   ${a => a}
+      | cm_number                 ${a => a}
 
 cm_keyword => 'sweet'             ${() => ['sweetConstant']}
             | 'happy'             ${() => ['happyConstant']}
 
-cm_atom => 'swe'              ${() => ['shortConst']}
+cm_atom => 'swe'                  ${() => ['shortConst']}
+
+cm_number => 'really' foo         ${(a, b) => ['really', b]}
+
+cm_number => foo 'and' foo          ${(a, b, c) => ['+', a, c]}
 
 int --> /[0-9]+/        ${parseInt}
 
@@ -66,9 +71,7 @@ CodeMirror.commands.autocomplete = function(cm) {
 var editor = CodeMirror(document.querySelector('.editor'), cmOptions)
 
 this.editor.setValue(
-`hello sweet world
-
-hello happy world
+`hello sweet and really happy world
 `
 )
 
