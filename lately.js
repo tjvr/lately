@@ -651,6 +651,8 @@
                 ri = symbols.length - r.tag.dot
             var option = symbols.slice(li, ri)
 
+            if (!option.length || option.every(tag => typeof tag === 'symbol')) continue
+
             completions.push({
               start: l.start.index,
               pre: symbols.slice(0, li),

@@ -127,14 +127,32 @@ CodeMirror.registerHelper("hint", "lately", function(editor, options) {
 
   let suggest = completer.complete(index, after)
 
-  // TODO filter completions:
-  // - work out slots vs. literals
-  // - omit where completion is all slots or whitespace or empty
-  // - order by size?
-
-  let list = []
+  // throw away longer completions
+  let max = Math.max.apply(null, suggest.map(c => c.start))
+  suggest = suggest.filter(c => c.start === max)
 
   var start = cur.ch, end = start
+
+  function tagText(tag) {
+    if (typeof tag === 'symbol') return ''
+    if (tag === Lately.Token.SEP) return ' '
+    return tag.toString()
+  }
+
+  // TODO insert space after completion [if allowed by grammar] [consume existing if possible]
+  // TODO highlight completions
+
+  let list = suggest.map(c => {
+    // start = Math.min(start, c.start)
+    // end = Math.min(end, c.end)
+    return {
+      //className: c.target.toString(),
+      text: c.completion.map(tagText).join(''),
+      //displayText: c.completion.map(x => x.toString()).join(''),
+      from: CodeMirror.Pos(cur.line, cur.ch),
+      to: CodeMirror.Pos(cur.line, cur.ch),
+    }
+  })
 
   let from = CodeMirror.Pos(cur.line, start)
   let to = CodeMirror.Pos(cur.line, end)

@@ -11,37 +11,52 @@ file --> NL file                  ${(a, b) => b}
 blankLines --> NL NL
             | blankLines NL
 
-script => cm_string               ${a => a}
+script => cheese                  ${a => a}
 
-cm_string => 'hello' foo 'world'  ${function() { return ['hello:world', arguments[3]] }}
-           | '1'
+cheese => 'hello' foo 'world'     ${function() { return ['hello:world', arguments[3]] }}
+       | '1'
 
-foo --> cm_keyword                ${a => a}
-      | cm_atom                   ${a => a}
-      | cm_number                 ${a => a}
+foo --> thing                     ${a => a}
+      | thing2                    ${a => a}
+      | op                        ${a => a}
 
-cm_keyword => 'sweet'             ${() => ['sweetConstant']}
-            | 'happy'             ${() => ['happyConstant']}
+thing => 'sweet'                  ${() => ['sweetConstant']}
+       | 'happy'                  ${() => ['happyConstant']}
 
-cm_atom => 'swe'                  ${() => ['shortConst']}
+thing2 => 'swe'                   ${() => ['shortConst']}
 
-cm_number => 'really' foo         ${(a, b) => ['really', b]}
+op => 'really' foo                ${(a, b) => ['really', b]}
 
-cm_number => foo 'and' foo          ${(a, b, c) => ['+', a, c]}
+op => foo 'and' foo               ${(a, b, c) => ['+', a, c]}
 
-int --> /[0-9]+/        ${parseInt}
+int --> /[0-9]+/                  ${parseInt}
 
 NL --> '\n'
 SEP --> ' '
       | NL
 `
 
+function hm(d) {
+  let q = {}
+  for (var key in d) {
+    q[Symbol.for(key)] = d[key]
+  }
+  return q
+}
+
+var highlightMap = hm({
+  cheese: 'string',
+  thing: 'keyword',
+  thing2: 'atom',
+  op: 'number',
+})
+
 var cmOptions = {
   value: "",
   mode: {
     name: 'lately',
     grammar: myDslGrammar,
-    highlight: tag => /cm_/.test(tag.toString()) ? tag.toString().slice(10).replace(/_/g, '-').replace(')', '') : '', // TODO ew
+    highlight: tag => highlightMap[tag] || null,
   },
   extraKeys: {'Ctrl-Space': 'autocomplete'},
 
@@ -65,7 +80,10 @@ var cmOptions = {
 
 
 CodeMirror.commands.autocomplete = function(cm) {
-  cm.showHint({ hint: CodeMirror.hint.lately })
+  cm.showHint({
+    //hint: CodeMirror.hint.lately,
+    completeSingle: false,
+  })
 }
 
 var editor = CodeMirror(document.querySelector('.editor'), cmOptions)
