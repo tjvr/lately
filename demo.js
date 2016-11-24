@@ -41,7 +41,7 @@ var cmOptions = {
   mode: {
     name: 'lately',
     grammar: myDslGrammar,
-    highlight: tag => /^cm_/.test(tag) ? tag.slice(3).replace(/_/g, '-') : '',
+    highlight: tag => /cm_/.test(tag.toString()) ? tag.toString().slice(10).replace(/_/g, '-').replace(')', '') : '', // TODO ew
   },
   extraKeys: {'Ctrl-Space': 'autocomplete'},
 

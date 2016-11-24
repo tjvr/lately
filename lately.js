@@ -56,7 +56,7 @@
     toString() {
       let symbols = this.rule.symbols.slice()
       symbols.splice(this.dot, 0, '•')
-      return '<' + this.rule.target.toString() + ' → ' + symbols.join(' ') + '>'
+      return '<' + this.rule.target.toString() + ' → ' + symbols.map(x => x.toString()).join(' ') + '>'
     }
   }
 
@@ -664,7 +664,7 @@
       }
 
       function pretty(symbol) {
-        return (typeof symbol === "string" ? symbol : symbol)
+        return (typeof symbol === "string" ? symbol : symbol.toString())
       }
 
       console.table(completions.map(function(s) {

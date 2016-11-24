@@ -57,6 +57,8 @@
       next()
     }
 
+    let symbolMap = new Map()
+
 
     function pGrammar() {
       var g = new Grammar()
@@ -71,7 +73,7 @@
         pBlankLines()
       }
       g.add(new Rule(Token.START, [start], a => a))
-      g.add(new Rule(Token.SEP, ['SEP'], a => a)) // TODO symbols?
+      g.add(new Rule(Token.SEP, [Symbol.for('SEP')], a => a)) // TODO symbols?
       return g
     }
 
@@ -139,7 +141,7 @@
         next()
       }
       if (!s) throw 'Unexpected ' + tok
-      return s
+      return Symbol.for(s) // TODO is Symbol the best thing?
     }
 
     function pString() {
