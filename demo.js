@@ -93,6 +93,8 @@ this.editor.setValue(
 `
 )
 
+editor.on('change', CodeMirror.commands.autocomplete)
+
 function compile() {
   let result = this.editor.getMode()._completer.parse(this.editor.getValue())
   console.log(JSON.stringify(result))

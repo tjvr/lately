@@ -98,40 +98,7 @@ CodeMirror.defineMode("lately", function(cfg, modeCfg) {
   }
 })
 
-CodeMirror.registerHelper("hint", "lately", function(editor, options) {
-  if (editor.getMode().name !== 'lately') {
-    throw new Error('editor must be in lately mode')
-  }
-  let completer = editor.getMode()._completer
-
-  // count characters up to the cursor line
-  let cur = editor.getCursor()
-  var index = 0
-  editor.getDoc().iter(0, cur.line, line => {
-    index += line.text.length + 1 // +1 for '\n'
-  })
-
-  // feed the current line up to the cursor
-  let line = editor.getLine(cur.line)
-  completer.rewind(index)
-  completer.feed(line.slice(0, cur.ch))
-  index += cur.ch
-
-  // check we counted correctly --TODO remove
-  let state = editor.getStateAfter(cur.line, false)
-  if (state.index !== index - cur.ch + line.length) debugger
-
-  // retrieve the entire rest of the document
-  let value = editor.getValue()
-  let after = value.slice(index)
-
-  let suggest = completer.complete(index, after)
-
-  // throw away longer completions
-  let max = Math.max.apply(null, suggest.map(c => c.start))
-  suggest = suggest.filter(c => c.start === max)
-
-  var start = cur.ch, end = start
+;(function() {
 
   function tagText(tag) {
     if (typeof tag === 'symbol') return ''
@@ -139,23 +106,97 @@ CodeMirror.registerHelper("hint", "lately", function(editor, options) {
     return tag.toString()
   }
 
-  // TODO insert space after completion [if allowed by grammar] [consume existing if possible]
-  // TODO highlight completions
-
-  let list = suggest.map(c => {
-    // start = Math.min(start, c.start)
-    // end = Math.min(end, c.end)
-    return {
-      //className: c.target.toString(),
-      text: c.completion.map(tagText).join(''),
-      //displayText: c.completion.map(x => x.toString()).join(''),
-      from: CodeMirror.Pos(cur.line, cur.ch),
-      to: CodeMirror.Pos(cur.line, cur.ch),
+  function applyHint(cm, data, completion) {
+    var text = completion.text;
+    cm.replaceRange(text, completion.from || data.from,
+                          completion.to || data.to, "complete");
+    if (completion.selection !== null) {
+      var line = completion.from.line;
+      var start = completion.from.ch + completion.selection, end = start;
+      cm.setSelection({ line: line, ch: start }, { line: line, ch: end });
     }
-  })
+  }
 
-  let from = CodeMirror.Pos(cur.line, start)
-  let to = CodeMirror.Pos(cur.line, end)
-  return { list, from, to }
-})
+  function hint(editor) {
+    if (editor.getMode().name !== 'lately') {
+      throw new Error('editor must be in lately mode')
+    }
+    let completer = editor.getMode()._completer
 
+    // count characters up to the cursor line
+    let cur = editor.getCursor()
+    var index = 0
+    editor.getDoc().iter(0, cur.line, line => {
+      index += line.text.length + 1 // +1 for '\n'
+    })
+
+    // require a non-blank line
+    if (cur.ch === 0) return
+
+    // feed the current line up to the cursor
+    let line = editor.getLine(cur.line)
+    completer.rewind(index)
+    completer.feed(line.slice(0, cur.ch))
+    index += cur.ch
+
+    // retrieve the entire rest of the document
+    let value = editor.getValue()
+    let after = value.slice(index)
+
+    let suggest = completer.complete(index, after)
+    if (!suggest) return
+
+    // throw away longer completions
+    let max = Math.max.apply(null, suggest.map(c => c.start))
+    suggest = suggest.filter(c => c.start === max)
+
+    // ignore if first item is SEP
+    suggest = suggest.filter(c => c.completion[0] !== Lately.Token.SEP)
+
+    var start = cur.ch, end = start
+
+    // TODO highlight completions
+
+    let list = []
+    suggest.forEach(c => {
+      // start = Math.min(start, c.start)
+      // end = Math.min(end, c.end)
+      var text = ''
+      var displayText = ''
+      var selection = null
+      c.completion.forEach(tag => {
+        if (typeof tag === 'symbol') {
+          displayText += '_'
+          if (selection === null) selection = text.length
+        } else {
+          let word = tag.hintText ? tag.hintText() : tag.toString()
+          text += word
+          displayText += word
+        }
+      })
+
+      // ignore if empty/whitespace
+      if (!text.trim() || !displayText.trim()) return
+
+      // ignore if has no effect! TODO--this is fishy
+      if (text === line.slice(c.start, c.end)) return
+
+      list.push({
+        text,
+        displayText,
+        selection,
+        hint: applyHint,
+        from: CodeMirror.Pos(cur.line, cur.ch),
+        to: CodeMirror.Pos(cur.line, cur.ch),
+      })
+    })
+    if (!list.length) return
+
+    let from = CodeMirror.Pos(cur.line, start)
+    let to = CodeMirror.Pos(cur.line, end)
+    return { list, from, to }
+  }
+
+  CodeMirror.registerHelper("hint", "lately", hint)
+
+}())

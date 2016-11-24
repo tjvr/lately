@@ -27,6 +27,10 @@
       return this.value ? ('`' + this.value + '`') : this.kind
     }
 
+    hintText() {
+      return this.kind === 'SEP' ? ' ' : this.value || ''
+    }
+
     scan() {
       return this.base ? [this.base, this] : [this]
     }
@@ -616,6 +620,8 @@
       // check there's no syntax error before the cursor
       if (this.leftParser.columns.length <= index) return
 
+      // TODO it's possible we want to decrement index until we find column.unique[0]
+
       // parse everything after the cursor (backwards!)
       var rightTokens = Array.from(right).reverse()
       this.rightParser.rewind(0)
@@ -643,8 +649,7 @@
           var l = leftColumn[i]
           var r = rightColumn[j]
           if (!r.rule) continue
-          if (l.rule === r.rule._original
-            ){
+          if (l.rule === r.rule._original) {
 
             var symbols = l.rule.symbols
             var li = l.tag.dot,
@@ -665,17 +670,13 @@
         }
       }
 
-      function pretty(symbol) {
-        return (typeof symbol === "string" ? symbol : symbol.toString())
-      }
-
       console.table(completions.map(function(s) {
         return {
           target: s.rule.target,
           start: s.start,
-          pre: s.pre.map(pretty).join(" "),
-          completion: s.completion.map(pretty).join(" "),
-          post: s.post.map(pretty).join(" "),
+          pre: s.pre.map(x => x.toString()).join(" "),
+          completion: s.completion.map(x => x.toString()).join(" "),
+          post: s.post.map(x => x.toString()).join(" "),
           end: s.end,
           build: s.rule.build,
         }
