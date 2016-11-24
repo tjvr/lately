@@ -99,15 +99,45 @@ CodeMirror.defineMode("lately", function(cfg, modeCfg) {
 })
 
 CodeMirror.registerHelper("hint", "lately", function(editor, options) {
-  // TODO all this
- 
-  let cur = editor.getCursor(), curLine = editor.getLine(cur.line)
-  let start = cur.ch, end = start
-  
+  if (editor.getMode().name !== 'lately') {
+    throw new Error('editor must be in lately mode')
+  }
+  let completer = editor.getMode()._completer
+
+  // count characters up to the cursor line
+  let cur = editor.getCursor()
+  var index = 0
+  editor.getDoc().iter(0, cur.line, line => {
+    index += line.text.length + 1 // +1 for '\n'
+  })
+
+  // feed the current line up to the cursor
+  let line = editor.getLine(cur.line)
+  completer.rewind(index)
+  completer.feed(line.slice(0, cur.ch))
+  index += cur.ch
+
+  // check we counted correctly --TODO remove
+  let state = editor.getStateAfter(cur.line, false)
+  if (state.index !== index - cur.ch + line.length) debugger
+
+  // retrieve the entire rest of the document
+  let value = editor.getValue()
+  let after = value.slice(index)
+
+  let suggest = completer.complete(index, after)
+
+  // TODO filter completions:
+  // - work out slots vs. literals
+  // - omit where completion is all slots or whitespace or empty
+  // - order by size?
+
+  let list = []
+
+  var start = cur.ch, end = start
+
   let from = CodeMirror.Pos(cur.line, start)
   let to = CodeMirror.Pos(cur.line, end)
-  let list = ["fridge", "potato"]
-
   return { list, from, to }
 })
 

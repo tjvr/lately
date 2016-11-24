@@ -95,6 +95,7 @@
     reverse() {
       let clone = new Rule(this.target, reversed(this.symbols), null)
       clone.priority = this.priority
+      clone._original = this
       return clone
     }
   }
@@ -444,8 +445,7 @@
       let column = this.columns[this.index]
       let item = column.unique[0].get(Token.START)
       if (!item) {
-        // TODO: can this happen?
-        throw this._error('Failed', this.tokens[this.index])
+        throw { error: 'Failed', index: this.index, type: 'not-finished' }
       }
 
       let value = item.evaluate()
@@ -612,28 +612,29 @@
     highlight(start, end, getClass) { return this.leftParser.highlight(start, end, getClass) }
     parse() { return this.leftParser.parse() }
 
-    complete(cursor, end) {
-      let tokens = this.tokens
+    complete(index, right) {
+      // check there's no syntax error before the cursor
+      if (this.leftParser.columns.length <= index) return
 
-      let right = tokens.slice(cursor)
-      right.reverse()
+      // parse everything after the cursor (backwards!)
+      var rightTokens = Array.from(right).reverse()
       this.rightParser.rewind(0)
-      this.rightParser.feed(tokens)
+      let error = this.rightParser.feed(rightTokens)
+      if (error) return
 
-      var leftColumn
-      var rightColumn
+      // check they're not valid
       try {
         this.leftParser.parse(left); throw false
       } catch (e) {
-        // TODO check index matches cursor
-        leftColumn = e._table[e._table.length - 1]
+        if (e === false) throw 'oops'
       }
       try {
         this.rightParser.parse(right); throw false
       } catch (e) {
-        // TODO check index matches right.length
-        rightColumn = e._table[e._table.length - 1]
+        if (e === false) throw 'oops'
       }
+      var leftColumn = this.leftParser.columns[index].items
+      var rightColumn = this.rightParser.columns[right.length].items
 
       var completions = []
 
@@ -641,24 +642,22 @@
         for (var j=0; j<rightColumn.length; j++) {
           var l = leftColumn[i]
           var r = rightColumn[j]
+          if (!r.rule) continue
           if (l.rule === r.rule._original
             ){
 
             var symbols = l.rule.symbols
-            var li = l.position,
-                ri = symbols.length - r.position
-            var completion = symbols.slice(li, ri)
-            var options = [completion]
+            var li = l.tag.dot,
+                ri = symbols.length - r.tag.dot
+            var option = symbols.slice(li, ri)
 
-            options.forEach(function(option) {
-              completions.push({
-                start: l.origin,
-                pre: symbols.slice(0, li),
-                completion: option,
-                post: symbols.slice(ri),
-                end: tokens.length - r.origin,
-                rule: l.rule,
-              })
+            completions.push({
+              start: l.start.index,
+              pre: symbols.slice(0, li),
+              completion: option,
+              post: symbols.slice(ri),
+              end: index + (right.length - r.start.index),
+              rule: l.rule,
             })
           }
         }
@@ -668,30 +667,21 @@
         return (typeof symbol === "string" ? symbol : symbol)
       }
 
-      // console.log("Completions table:")
-      // console.table(completions.map(function(s) {
-      //   var info = s.rule.process._info
-      //   return {
-      //     start: s.start,
-      //     pre: s.pre.map(pretty).join(" "),
-      //     completion: s.completion.map(pretty).join(" "),
-      //     post: s.post.map(pretty).join(" "),
-      //     end: s.end,
-      //     selector: info ? info.selector : null,
-      //     name: s.rule.name,
-      //   }
-      // }))
+      console.table(completions.map(function(s) {
+        return {
+          target: s.rule.target,
+          start: s.start,
+          pre: s.pre.map(pretty).join(" "),
+          completion: s.completion.map(pretty).join(" "),
+          post: s.post.map(pretty).join(" "),
+          end: s.end,
+          build: s.rule.build,
+        }
+      }))
 
       return completions
     }
 
-  }
-  Completer.cursorToken = {
-    kind: "cursor",
-    value: "_CURSOR_",
-    isEqual: function(other) {
-      return other === this
-    },
   }
 
 
