@@ -146,21 +146,7 @@ CodeMirror.defineMode("lately", function(cfg, modeCfg) {
     let suggest = completer.complete(index, after)
     if (!suggest) return
 
-    // throw away longer completions
-    let max = Math.max.apply(null, suggest.map(c => c.start))
-    suggest = suggest.filter(c => c.start === max)
-
-    // ignore if first item is SEP
-    suggest = suggest.filter(c => c.completion[0] !== Lately.Token.SEP)
-
-    var start = cur.ch, end = start
-
-    // TODO highlight completions
-
-    let list = []
     suggest.forEach(c => {
-      // start = Math.min(start, c.start)
-      // end = Math.min(end, c.end)
       var text = ''
       var displayText = ''
       var selection = null
@@ -174,17 +160,31 @@ CodeMirror.defineMode("lately", function(cfg, modeCfg) {
           displayText += word
         }
       })
+      Object.assign(c, {text, displayText, selection})
+    })
 
-      // ignore if empty/whitespace
-      if (!text.trim() || !displayText.trim()) return
+    // ignore if empty/whitespace
+    suggest = suggest.filter(c => c.text.trim() && c.displayText.trim())
 
-      // ignore if has no effect! TODO--this is fishy
-      if (text === line.slice(c.start, c.end)) return
+    // ignore if has no effect! TODO--this doesn't work
+    suggest = suggest.filter(c => c.displayText !== line.slice(c.start, c.end))
 
+    // throw away longer completions
+    let max = Math.max.apply(null, suggest.map(c => c.start))
+    suggest = suggest.filter(c => c.start === max)
+
+    // ignore if first item is SEP
+    // TODO insert space after completion instead
+    //suggest = suggest.filter(c => c.completion[0] !== Lately.Token.SEP)
+
+    // TODO highlight completions
+
+    let list = []
+    suggest.forEach(c => {
       list.push({
-        text,
-        displayText,
-        selection,
+        text: c.text,
+        displayText: c.displayText,
+        selection: c.selection,
         hint: applyHint,
         from: CodeMirror.Pos(cur.line, cur.ch),
         to: CodeMirror.Pos(cur.line, cur.ch),
@@ -192,6 +192,7 @@ CodeMirror.defineMode("lately", function(cfg, modeCfg) {
     })
     if (!list.length) return
 
+    var start = cur.ch, end = start
     let from = CodeMirror.Pos(cur.line, start)
     let to = CodeMirror.Pos(cur.line, end)
     return { list, from, to }
