@@ -100,6 +100,8 @@ CodeMirror.defineMode("lately", function(cfg, modeCfg) {
 
 ;(function() {
 
+  const Pos = CodeMirror.Pos
+
   function tagText(tag) {
     if (typeof tag === 'symbol') return ''
     if (tag === Lately.Token.SEP) return ' '
@@ -113,9 +115,11 @@ CodeMirror.defineMode("lately", function(cfg, modeCfg) {
     if (completion.selection !== null) {
       var line = completion.from.line;
       var start = completion.from.ch + completion.selection, end = start;
-      cm.setSelection({ line: line, ch: start }, { line: line, ch: end });
+      cm.setSelection(Pos(line, start), Pos(line, end))
     }
   }
+
+  // TODO doesn't work on next line?
 
   function hint(editor) {
     if (editor.getMode().name !== 'lately') {
@@ -129,6 +133,7 @@ CodeMirror.defineMode("lately", function(cfg, modeCfg) {
     editor.getDoc().iter(0, cur.line, line => {
       index += line.text.length + 1 // +1 for '\n'
     })
+    let lineIndex = index
 
     // require a non-blank line
     if (cur.ch === 0) return
@@ -147,19 +152,26 @@ CodeMirror.defineMode("lately", function(cfg, modeCfg) {
     if (!suggest) return
 
     suggest.forEach(c => {
+      // offset by start-of-line
+      c.start -= lineIndex
+      c.end -= lineIndex
+
+      var displayText = c.completion.map(tag => {
+        return typeof tag === 'symbol' ? '_' : tag.hintText ? tag.hintText() : tag.toString()
+      }).join('')
+
+      // generate replacement text
       var text = ''
-      var displayText = ''
       var selection = null
       c.completion.forEach(tag => {
         if (typeof tag === 'symbol') {
-          displayText += '_'
+          // TODO selection must not be before start!
           if (selection === null) selection = text.length
         } else {
-          let word = tag.hintText ? tag.hintText() : tag.toString()
-          text += word
-          displayText += word
+          text += tag.hintText ? tag.hintText() : tag.toString()
         }
       })
+      if (selection === null) selection = text.length
       Object.assign(c, {text, displayText, selection})
     })
 
@@ -167,7 +179,11 @@ CodeMirror.defineMode("lately", function(cfg, modeCfg) {
     suggest = suggest.filter(c => c.text.trim() && c.displayText.trim())
 
     // ignore if has no effect! TODO--this doesn't work
-    suggest = suggest.filter(c => c.displayText !== line.slice(c.start, c.end))
+    suggest = suggest.filter(c => {
+      let exist = line.slice(c.start, c.end)
+      return c.text !== exist
+    })
+
 
     // throw away longer completions
     let max = Math.max.apply(null, suggest.map(c => c.start))
@@ -179,22 +195,24 @@ CodeMirror.defineMode("lately", function(cfg, modeCfg) {
 
     // TODO highlight completions
 
+    var start = cur.ch, end = start
+
     let list = []
     suggest.forEach(c => {
+      //start = Math.min(start, c.start)
       list.push({
-        text: c.text,
+        text: line.slice(c.start, cur.ch) + c.text + line.slice(cur.ch, c.end),
         displayText: c.displayText,
-        selection: c.selection,
+        selection: c.selection === null ? null : c.selection + (cur.ch - c.start),
         hint: applyHint,
-        from: CodeMirror.Pos(cur.line, cur.ch),
-        to: CodeMirror.Pos(cur.line, cur.ch),
+        from: Pos(cur.line, c.start),
+        to: Pos(cur.line, c.end),
       })
     })
     if (!list.length) return
 
-    var start = cur.ch, end = start
-    let from = CodeMirror.Pos(cur.line, start)
-    let to = CodeMirror.Pos(cur.line, end)
+    let from = Pos(cur.line, start)
+    let to = Pos(cur.line, end)
     return { list, from, to }
   }
 

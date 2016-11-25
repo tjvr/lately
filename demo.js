@@ -83,6 +83,7 @@ CodeMirror.commands.autocomplete = function(cm) {
   cm.showHint({
     //hint: CodeMirror.hint.lately,
     completeSingle: false,
+    //alignWithWord: true,
   })
 }
 
